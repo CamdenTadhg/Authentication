@@ -12,12 +12,20 @@
         <div class="container-fluid">
             <a href="/" class="navbar-brand text-primary fs-3">Feedback App</a>
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
-                <li class="nav-item">
-                    <a class="nav-link text-primary fs-6" href="/register">Register</a>
-                </li>
-                <li class="nav-item">
-                    <a href="/login" class="nav-link text-primary fs-6">Login</a>
-                </li>
+                {% if session['username'] %}
+                    <li class="nav-item">
+                        <form method="POST" action="/logout">
+                            <button class="nav-link text-primary fs-6"><b>Logout</b></button>
+                        </form>
+                    </li>
+                {% else %}
+                    <li class="nav-item">
+                        <a class="nav-link text-primary fs-6" href="/register">Register</a>
+                    </li>
+                    <li class="nav-item">
+                        <a href="/login" class="nav-link text-primary fs-6">Login</a>
+                    </li>
+                {% endif %}
             </ul>
         </div>
     </nav>

@@ -21,7 +21,7 @@ toolbar = DebugToolbarExtension(app)
 
 @app.route('/')
 def route_register():
-    return redirect('/register')
+    return render_template('index.html')
 
 @app.route('/register', methods=["GET", "POST"])
 def register_user():
@@ -66,8 +66,14 @@ def display_secret():
         return redirect('/')
     return render_template('secret.html')
 
-# 16 limit access to /secret
-# 15 make logout route
+@app.route('/logout', methods=["POST"])
+def logout_user():
+    """clear data from session and redirect to home"""
+    session.pop('username')
+    flash('Goodbye!', 'primary')
+    return redirect('/')
+
+
 # 14 change /secret route to a user page
 # 13 create feedback model
 # 12 make routes for feedback
