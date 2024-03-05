@@ -1,12 +1,11 @@
 {% extends 'base.html' %}
 
-{% block title %}Registration Form{% endblock %}
+{% block title %}Add Feedback{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1 class="my-4">Registration Form</h1>
-
-    <form id="registration-form" method="POST">
+    <h1 class="my-4">Add Your Feedback</h1>
+    <form id="feedback-form" method="POST">
         {{form.hidden_tag()}}
 
         {% for field in form if field.widget.input_type != 'hidden' %}
@@ -22,8 +21,7 @@
             {% endfor %}
         </p>
         {% endfor %}
-        <button type="submit" class="btn btn-primary">Submit</button>
+        <button type="submit" class="btn btn-primary">Add</button>
 
     </form>
-</div>
 {% endblock %}

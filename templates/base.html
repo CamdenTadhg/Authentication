@@ -14,6 +14,9 @@
             <ul class="navbar-nav me-auto mb-2 mb-lg-0">
                 {% if session['username'] %}
                     <li class="nav-item">
+                        <a href="/user/{{loggedinuser}}" class="nav-link text-primary fs-6">My Account</a>
+                    </li>
+                    <li class="nav-item">
                         <form method="POST" action="/logout">
                             <button class="nav-link text-primary fs-6"><b>Logout</b></button>
                         </form>
