@@ -16,7 +16,9 @@
             {{field(class_="form-control")}}
 
             {% for error in field.errors %}
-                {{error(class_='text-danger')}}
+                <div class="text-sm text-danger">
+                    {{error}}                  
+                </div>
             {% endfor %}
         </p>
         {% endfor %}

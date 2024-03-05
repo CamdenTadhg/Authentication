@@ -23,6 +23,8 @@ toolbar = DebugToolbarExtension(app)
 def route_register():
     return render_template('index.html')
 
+#AUTHENTICATION ROUTES
+
 @app.route('/register', methods=["GET", "POST"])
 def register_user():
     """displays registration form and registers new users"""
@@ -58,15 +60,6 @@ def login_user():
             form.username.errors=['invalid username/password']
     return render_template('login.html', form=form)
 
-@app.route('/user/<username>')
-def display_user(username):
-    """displays a user to authorized users"""
-    if "username" not in session: 
-        flash("Please register or login first!", "danger")
-        return redirect('/')
-    user = User.query.get_or_404(username)
-    return render_template('user.html', user=user)
-
 @app.route('/logout', methods=["POST"])
 def logout_user():
     """clear data from session and redirect to home"""
@@ -74,11 +67,39 @@ def logout_user():
     flash('Goodbye!', 'primary')
     return redirect('/')
 
+#USER ROUTES
 
-# 12 make routes for feedback
-# 11 make additional routes for users (/users/username, /users/username/delete, users/username/feedback/add GET, users/username/feedback/add POST, /feedback/feedbackid/update GET, /feedback/feedbackid/update POST, /feedback/feedbackid/delete)
+@app.route('/user/<username>')
+def display_user(username):
+    """displays a user to authorized users"""
+    if "username" not in session: 
+        flash("Please register or login first!", "danger")
+        return redirect('/')
+    user = User.query.get_or_404(username)
+    feedbacks = db.session.execute(db.select(Feedback).where(Feedback.username == user.username)).scalars()
+    return render_template('user.html', user=user, feedbacks=feedbacks)
 
-# 10 make sure registration and authentication are methods on your user class
+@app.route('/user/<username>/delete', methods=["POST"])
+def delete_user(username):
+    """deletes a user's account and all associated feedback"""
+    user = User.query.get_or_404(username)
+    if session['username'] == user.username:
+        feedbacks = db.session.execute(db.select(Feedback).where(Feedback.username == user.username)).scalars()
+        for feedback in feedbacks:
+            db.session.delete(feedback)
+            db.session.commit()
+        db.session.delete(user)
+        db.session.commit()
+        session.pop('username')
+        flash('Account deleted', 'danger')
+    else: 
+        flash('You do not have permissions to delete this account', 'danger')
+    return redirect('/')
+
+
+
+# 10 make additional routes for feedback & users (users/username/feedback/add GET, users/username/feedback/add POST, /feedback/feedbackid/update GET, /feedback/feedbackid/update POST, /feedback/feedbackid/delete)
+
 # 9 if there is already a username in session, do not allow users to see register or login forms
 # 8 add a 404 page and a 401 page when users are not authenticated
 # 7 add column to user table for admins. Admines can add, update, or delete any feedback and delete users

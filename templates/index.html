@@ -3,5 +3,6 @@
 {% block title %}Feedback App{% endblock %}
 
 {% block content %}
-<h1>Welcome to the feedback app. Please login. </h1>
+<h1>Welcome to the feedback app. 
+    {% if not session['username'] %}Please login. {% endif %}</h1>
 {% endblock %}
