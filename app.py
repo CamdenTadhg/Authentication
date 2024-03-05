@@ -18,7 +18,6 @@ db.create_all()
 
 toolbar = DebugToolbarExtension(app)
 
-# 17 create base template
 # 16 make user routes (/, /register GET, /register POST, /login GET, /login POST, /secret)
 # 15 limit access to /secret
 # 14 make logout route
