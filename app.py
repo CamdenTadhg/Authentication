@@ -1,6 +1,6 @@
 from flask import Flask, render_template, redirect, session, flash
 from flask_debugtoolbar import DebugToolbarExtension
-from models import connect_db, db, User
+from models import connect_db, db, User, Feedback
 from forms import RegisterForm, LoginForm
 
 app = Flask(__name__)
@@ -75,7 +75,6 @@ def logout_user():
     return redirect('/')
 
 
-# 13 create feedback model
 # 12 make routes for feedback
 # 11 make additional routes for users (/users/username, /users/username/delete, users/username/feedback/add GET, users/username/feedback/add POST, /feedback/feedbackid/update GET, /feedback/feedbackid/update POST, /feedback/feedbackid/delete)
 
