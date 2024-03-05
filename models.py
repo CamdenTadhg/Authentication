@@ -42,3 +42,8 @@ class User(db.Model):
             return u
         else:
             return False
+    
+    @property
+    def fullname(self):
+        """return user's full name"""
+        return f"{self.first_name} {self.last_name}"

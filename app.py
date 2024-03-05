@@ -39,7 +39,7 @@ def register_user():
         db.session.commit()
         session['username'] = new_user.username
         flash('Welcome, Successfully created account', 'success')
-        return redirect('/secret')
+        return redirect(f'/user/{new_user.username}')
     return render_template('register.html', form=form)
 
 @app.route('/login', methods=["GET", "POST"])
@@ -53,18 +53,19 @@ def login_user():
         user = User.authenticate(username, password)
         if user: 
             session["username"] = user.username
-            return redirect('/secret')
+            return redirect(f'/user/{user.username}')
         else:
             form.username.errors=['invalid username/password']
     return render_template('login.html', form=form)
 
-@app.route('/secret')
-def display_secret():
-    """displays secret page to authorized users"""
+@app.route('/user/<username>')
+def display_user(username):
+    """displays a user to authorized users"""
     if "username" not in session: 
         flash("Please register or login first!", "danger")
         return redirect('/')
-    return render_template('secret.html')
+    user = User.query.get_or_404(username)
+    return render_template('user.html', user=user)
 
 @app.route('/logout', methods=["POST"])
 def logout_user():
@@ -74,7 +75,6 @@ def logout_user():
     return redirect('/')
 
 
-# 14 change /secret route to a user page
 # 13 create feedback model
 # 12 make routes for feedback
 # 11 make additional routes for users (/users/username, /users/username/delete, users/username/feedback/add GET, users/username/feedback/add POST, /feedback/feedbackid/update GET, /feedback/feedbackid/update POST, /feedback/feedbackid/delete)

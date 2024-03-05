@@ -4,6 +4,8 @@
 
 {% block content %}
 <div class="container">
-    <h1 class="my-4">You made it!</h1>
+    <h1 class="my-4">{{user.username}}</h1>
+    <h4>Name: {{user.fullname}}</h4>
+    <h4>Email: {{user.email}}</h4>
 </div>
 {% endblock %}
