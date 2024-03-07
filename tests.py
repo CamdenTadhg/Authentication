@@ -208,13 +208,22 @@ class FeedbackViewsTestCase(TestCase):
             self.assertEqual(session['username'], 'JohnDoe')
             self.assertEqual(session['admin'], True)
 
-    def test_login_user_incorrect(self): 
+    def test_login_user_incorrect_username(self): 
         with app.test_client() as client:
-            resp = client.post('/login', data={"username": "JaneDoe", "password": "passwordpassword!"})
+            resp = client.post('/login', data={"username": "JaneCDoe", "password": "passwordpassword!"})
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
-            self.assertIn("invalid", html)
+            self.assertIn("invalid username", html)
+            self.assertFalse(session.get('username'))
+    
+    def test_login_user_incorrect_password(self):
+        with app.test_client() as client:
+            resp = client.post('/login', data={"username": "JaneDoe", "password": "passwordpassword"})
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn("invalid password", html)
             self.assertFalse(session.get('username'))
 
     def test_logout(self):

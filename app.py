@@ -87,15 +87,14 @@ def login_user():
         username = form.username.data
         password = form.password.data
         user = User.authenticate(username, password)
-        print('*********************************')
-        print(user)
-        print('**********************************')
         if user: 
             session["username"] = user.username
             session["admin"] = user.is_admin
             return redirect(f'/user/{user.username}')
+        elif not db.session.execute(db.select(User).where(User.username == username)).scalar():
+            form.username.errors = ['invalid username'] 
         else:
-            form.username.errors=['invalid username/password']
+            form.password.errors=['invalid password']
     return render_template('login.html', form=form)
 
 @app.route('/logout', methods=["POST"])
@@ -230,13 +229,11 @@ def delete_feedback(feedback_id):
         raise Unauthorized()
 
 
-
-# 5 validate and confirm password
-    # update testing
 # 4 differentiate between invalid username and invalid password
     # update testing
 # 3 add functionality to reset a password
     # update testing
-# 2 style it
-# 1 pull as much logic as possible out of view functions
+# 2 pull as much logic as possible out of view functions
     # update testing
+# 1 style it
+
