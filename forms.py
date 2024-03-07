@@ -29,3 +29,10 @@ class LoginForm(FlaskForm):
 class FeedbackForm(FlaskForm):
     title = StringField("Title", validators=[InputRequired(message="Title is required."), Length(max=100, message="Title must be 100 characters or less.")])
     content = StringField("Content", validators=[InputRequired(message="Content is required.")])
+
+class PasswordResetForm(FlaskForm):
+    email = EmailField("Please enter your email", validators=[InputRequired(message="Please enter your email")])
+
+class UpdatePasswordForm(FlaskForm):
+    password = PasswordField("Password", validators=[InputRequired(message="Password is required."), valid_password_length, valid_password_characters])
+    password2 = PasswordField("Confirm Password", validators=[InputRequired(message="Please confirm your password.")])

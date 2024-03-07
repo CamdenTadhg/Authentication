@@ -1,20 +1,31 @@
-from flask import Flask, render_template, redirect, session, flash
+from flask import Flask, render_template, redirect, session, flash, request
 from flask_debugtoolbar import DebugToolbarExtension
 from models import connect_db, db, User, Feedback
-from forms import RegisterForm, LoginForm, FeedbackForm
+from forms import RegisterForm, LoginForm, FeedbackForm, PasswordResetForm, UpdatePasswordForm
 from werkzeug.exceptions import NotFound, Unauthorized
 from sqlalchemy.exc import IntegrityError
+from flask_mail import Mail, Message
+from sqlalchemy import update
+from local_settings import MAIL_PASSWORD
+
 
 app = Flask(__name__)
 
 app.app_context().push()
 
-# app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql:///feedback"
-app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql:///feedback_test"
+app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql:///feedback"
+# app.config["SQLALCHEMY_DATABASE_URI"] = "postgresql:///feedback_test"
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.config["SQLALCHEMY_ECHO"] = True
 app.config["SECRET_KEY"] = 'requin'
 app.config["DEBUG_TB_INTERCEPT_REDIRECTS"] = False
+app.config['MAIL_SERVER'] = 'smtp.gmail.com'
+app.config['MAIL_PORT'] = 465
+app.config['MAIL_USE_SSL'] = True
+app.config['MAIL_USERNAME'] = 'theenbydeveloper@gmail.com'
+app.config['MAIL_PASSWORD'] = MAIL_PASSWORD
+
+mail = Mail(app)
 
 connect_db(app)
 db.create_all()
@@ -26,8 +37,6 @@ def display_home():
     if 'username' in session:
         loggedinuser = session['username']
         return render_template('index.html', loggedinuser=loggedinuser)
-    else: 
-        username = ''
     return render_template('index.html')
 
 @app.errorhandler(NotFound)
@@ -65,8 +74,12 @@ def register_user():
                 new_user = User.register(username, password, email, first_name, last_name)
                 db.session.add(new_user)
                 db.session.commit()
-            except IntegrityError:
-                form.username.errors.append('Username taken. Please pick another')
+            except IntegrityError as e:
+                db.session.rollback()
+                if 'username' in str(e):
+                    form.username.errors.append('Username taken. Please pick another')
+                if 'email' in str(e):
+                    form.email.errors.append('Email already registered. Please log in')
                 return render_template('register.html', form=form)
             session['username'] = new_user.username
             session['admin'] = new_user.is_admin
@@ -105,6 +118,72 @@ def logout_user():
         session.pop('admin')
     flash('Goodbye!', 'primary')
     return redirect('/')
+
+@app.route('/passwordreset', methods=["GET", "POST"])
+def reset_password():
+    """displays password reset request form and sends password reset email"""
+    if "username" in session:
+        flash('You are already logged in.', 'danger')
+        return redirect('/')
+    
+    form = PasswordResetForm()
+
+    if form.validate_on_submit():
+        email = form.email.data
+        user = db.session.execute(db.select(User).where(User.email == email)).scalar()
+        if user: 
+            prt = user.get_password_reset_token()
+            stmt = update(User).where(User.email == email).values(password_reset_token=prt)
+            db.session.execute(stmt)
+            db.session.commit()
+            msg = Message(subject='Password Reset Link', sender='theenbydeveloper@gmail.com', recipients=[email])
+            msg.html = render_template('passwordresetemail.html', prt=prt, email=email)
+            mail.send(msg)
+            return redirect('/login')
+
+    return render_template('reset.html', form=form)
+
+@app.route('/updatepassword', methods=["GET", "POST"])
+def show_update_password_form():
+    """Displays password reset form and resets password"""
+    if "username" in session:
+        flash('You are already logged in.', 'danger')
+        return redirect('/')
+    
+    form = UpdatePasswordForm()
+    email = request.args['email']
+    prt = request.args['prt']
+    user = db.session.execute(db.select(User).where(User.email == email)).scalar()
+
+    if form.validate_on_submit():
+        password = form.password.data
+        password2 = form.password2.data
+        if password != password2:
+            form.password2.errors=['Passwords do not match']
+            return render_template('updatepassword.html', form=form)
+        hashed_password = user.update_password_hash(pwd=password)
+        stmt = update(User).where(User.email == email).values(password=hashed_password)
+        db.session.execute(stmt)
+        try:
+            db.session.commit()
+        except: 
+            flash('Something went wrong. Please try again.')
+            return redirect('/passwordreset')
+        stmt2 = update(User).where(User.email == email).values(password_reset_token=None)
+        db.session.execute(stmt2)
+        try:
+            db.session.commit()
+        except:
+            flash('Something went wrong. Please try again')
+            return redirect('/passwordreset')
+        return redirect('/login')
+    elif user and user.password_reset_token == prt:
+        return render_template('updatepassword.html', form=form)
+    
+    else: 
+        flash('Unauthorized password reset attempt', 'danger')
+        return redirect('/')
+
 
 #USER ROUTES
 
@@ -229,11 +308,20 @@ def delete_feedback(feedback_id):
         raise Unauthorized()
 
 
-# 4 differentiate between invalid username and invalid password
-    # update testing
-# 3 add functionality to reset a password
-    # update testing
+# 3 add functionality to reset a password or get a username
+    # get username button/link
+    # get username request form
+    # username sent via email
+    # add test for duplicate email
+    # test for password reset token creation method
+    # test for password resent view function
+    # test for get username view function
 # 2 pull as much logic as possible out of view functions
-    # update testing
+    # create tests for new functions
+    # ensure existing tests test what the view function actually does
 # 1 style it
+    # find a theme that will work for the site
+    # install the theme
+    # change any necesssary style tags
+    # check all pages and tweak as needed
 

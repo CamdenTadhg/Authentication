@@ -2,7 +2,6 @@ from unittest import TestCase
 from app import app
 from models import db, User, Feedback, bcrypt
 from flask import session
-from sqlalchemy import update
 
 app.config['TESTING'] = True
 app.config['WTF_CSRF_ENABLED'] = False
