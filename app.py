@@ -54,20 +54,24 @@ def register_user():
     if form.validate_on_submit():
         username = form.username.data
         password = form.password.data
+        password2 = form.password2.data
         email = form.email.data
         first_name = form.first_name.data
         last_name = form.last_name.data
-        try: 
-            new_user = User.register(username, password, email, first_name, last_name)
-            db.session.add(new_user)
-            db.session.commit()
-        except IntegrityError:
-            form.username.errors.append('Username taken. Please pick another')
-            return render_template('register.html', form=form)
-        session['username'] = new_user.username
-        session['admin'] = new_user.is_admin
-        flash('Welcome, Successfully created account', 'success')
-        return redirect(f'/user/{new_user.username}')
+        if password != password2:
+            form.password2.errors=['Passwords do not match']
+        else: 
+            try: 
+                new_user = User.register(username, password, email, first_name, last_name)
+                db.session.add(new_user)
+                db.session.commit()
+            except IntegrityError:
+                form.username.errors.append('Username taken. Please pick another')
+                return render_template('register.html', form=form)
+            session['username'] = new_user.username
+            session['admin'] = new_user.is_admin
+            flash('Welcome, Successfully created account', 'success')
+            return redirect(f'/user/{new_user.username}')
     return render_template('register.html', form=form)
 
 @app.route('/login', methods=["GET", "POST"])
@@ -227,7 +231,6 @@ def delete_feedback(feedback_id):
 
 
 
-# 6 add tests for all view functions and model method
 # 5 validate and confirm password
     # update testing
 # 4 differentiate between invalid username and invalid password

@@ -19,11 +19,11 @@ class FeedbackViewsTestCase(TestCase):
         Feedback.query.delete()
         User.query.delete()
 
-        user1 = User.register(username="JaneDoe", pwd="secret", email="janedoe@gmail.com", first_name = "Jane", last_name="Doe")
+        user1 = User.register(username="JaneDoe", pwd="secretsecret!", email="janedoe@gmail.com", first_name = "Jane", last_name="Doe")
         db.session.add(user1)
-        user2 = User.register(username="JohnDoe", pwd="secret2", email="johndoe@gmail.com", first_name="John", last_name="Doe")
+        user2 = User.register(username="JohnDoe", pwd="secret2secret2!", email="johndoe@gmail.com", first_name="John", last_name="Doe")
         db.session.add(user2)
-        user3 = User.register(username="DianaBright", pwd="password", email="dianabright@gmail.com", first_name="Diana", last_name="Bright")
+        user3 = User.register(username="DianaBright", pwd="passwordpassword!", email="dianabright@gmail.com", first_name="Diana", last_name="Bright")
         db.session.add(user3)
         db.session.commit()
         stmt = update(User).where(User.username == "JohnDoe").values(is_admin=True)
@@ -77,7 +77,7 @@ class FeedbackViewsTestCase(TestCase):
 
     def test_register_user_post(self):
         with app.test_client() as client:
-            resp = client.post('/register', data = {"username": "Superman", "password": "superman", "email": "superman@gmail.com", "first_name": "Super", "last_name": "Man"} )
+            resp = client.post('/register', data = {"username": "Superman", "password": "supermansuperman!", "password2": "supermansuperman!", "email": "superman@gmail.com", "first_name": "Super", "last_name": "Man"} )
 
             self.assertEqual(resp.status_code, 302)
             self.assertEqual(resp.location, f'/user/Superman')
@@ -86,7 +86,7 @@ class FeedbackViewsTestCase(TestCase):
     
     def test_register_user_post_redirect(self):
         with app.test_client() as client:
-            resp = client.post('/register', data = {"username": "Superman", "password": "superman", "email": "superman@gmail.com", "first_name": "Super", "last_name": "Man"}, follow_redirects=True ) 
+            resp = client.post('/register', data = {"username": "Superman", "password": "supermansuperman!", "password2": "supermansuperman!", "email": "superman@gmail.com", "first_name": "Super", "last_name": "Man"}, follow_redirects=True ) 
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
@@ -114,11 +114,35 @@ class FeedbackViewsTestCase(TestCase):
 
     def test_register_user_duplicate_username(self):
         with app.test_client() as client:
-            resp = client.post('/register', data= {"username": "JaneDoe", "password": "password", "email": "janedoe2@gmail.com", "first_name": "Jane", "last_name": "Doe"})
+            resp = client.post('/register', data= {"username": "JaneDoe", "password": "passwordpassword!", "password2": "passwordpassword!", "email": "janedoe2@gmail.com", "first_name": "Jane", "last_name": "Doe"})
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
             self.assertIn('Username taken', html)
+    
+    def test_register_user_password_unmatch(self):
+        with app.test_client() as client:
+            resp = client.post('/register', data={"username": "Superman", "password": "supermansuperman!", "password2": "superman2superman2!", "email": "superman@gmail.com", "first_name": "Super", "last_name": "Man"})
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Passwords do not match', html)
+
+    def test_register_user_password_too_short(self):
+        with app.test_client() as client:
+            resp = client.post('/register', data={"username": "Superman", "password": "superman!", "password2": "superman!", "email": "superman@gmail.com", "first_name": "Super", "last_name": "Man"})
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Password must be at least 10 characters', html)
+
+    def test_register_user_password_too_simple(self):
+        with app.test_client() as client:
+            resp = client.post('/register', data={"username": "Superman", "password": "supermansuperman", "password2": "supermansuperman", "email": "superman@gmail.com", "first_name": "Super", "last_name": "Man"})
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Password must contain at least one special character', html)
     
     def test_login_user_get(self): 
         with app.test_client() as client:
@@ -149,7 +173,7 @@ class FeedbackViewsTestCase(TestCase):
 
     def test_login_user_correct(self):
         with app.test_client() as client:
-            resp = client.post('/login', data={"username": "JaneDoe", "password": "secret"})
+            resp = client.post('/login', data={"username": "JaneDoe", "password": "secretsecret!"})
 
             self.assertEqual(resp.status_code, 302)
             self.assertEqual(resp.location, f'/user/JaneDoe')
@@ -158,7 +182,7 @@ class FeedbackViewsTestCase(TestCase):
     
     def test_login_user_correct_redirect(self):
         with app.test_client() as client:
-            resp = client.post('/login', data={"username": "JaneDoe", "password": "secret"}, follow_redirects=True)
+            resp = client.post('/login', data={"username": "JaneDoe", "password": "secretsecret!"}, follow_redirects=True)
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
@@ -167,7 +191,7 @@ class FeedbackViewsTestCase(TestCase):
 
     def test_login_admin_user_correct(self):
         with app.test_client() as client:
-            resp = client.post('/login', data={"username": "JohnDoe", "password": "secret2"})
+            resp = client.post('/login', data={"username": "JohnDoe", "password": "secret2secret2!"})
 
             self.assertEqual(resp.status_code, 302)
             self.assertEqual(resp.location, '/user/JohnDoe')
@@ -176,7 +200,7 @@ class FeedbackViewsTestCase(TestCase):
 
     def test_login_admin_user_correct_redirect(self):
         with app.test_client() as client:
-            resp = client.post('/login', data={"username": "JohnDoe", "password": "secret2"}, follow_redirects=True)
+            resp = client.post('/login', data={"username": "JohnDoe", "password": "secret2secret2!"}, follow_redirects=True)
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
@@ -186,7 +210,7 @@ class FeedbackViewsTestCase(TestCase):
 
     def test_login_user_incorrect(self): 
         with app.test_client() as client:
-            resp = client.post('/login', data={"username": "JaneDoe", "password": "password"})
+            resp = client.post('/login', data={"username": "JaneDoe", "password": "passwordpassword!"})
             html = resp.get_data(as_text=True)
 
             self.assertEqual(resp.status_code, 200)
