@@ -22,7 +22,7 @@ db.create_all()
 toolbar = DebugToolbarExtension(app)
 
 @app.route('/')
-def route_register():
+def display_home():
     if 'username' in session:
         loggedinuser = session['username']
         return render_template('index.html', loggedinuser=loggedinuser)
@@ -83,6 +83,9 @@ def login_user():
         username = form.username.data
         password = form.password.data
         user = User.authenticate(username, password)
+        print('*********************************')
+        print(user)
+        print('**********************************')
         if user: 
             session["username"] = user.username
             session["admin"] = user.is_admin
@@ -137,7 +140,8 @@ def delete_user(username):
             return redirect(f'/user/{username}')
         if session['username'] == user.username:
             session.pop('username')
-            session.pop('admin')
+            if session.get('admin'):
+               session.pop('admin')
         flash('Account deleted', 'danger')
         return redirect('/')
     else: 
@@ -223,9 +227,13 @@ def delete_feedback(feedback_id):
 
 
 
-# 6 add tests for all view functions and model methods
+# 6 add tests for all view functions and model method
 # 5 validate and confirm password
+    # update testing
 # 4 differentiate between invalid username and invalid password
+    # update testing
 # 3 add functionality to reset a password
+    # update testing
 # 2 style it
 # 1 pull as much logic as possible out of view functions
+    # update testing
