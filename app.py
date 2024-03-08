@@ -1,7 +1,7 @@
 from flask import Flask, render_template, redirect, session, flash, request
 from flask_debugtoolbar import DebugToolbarExtension
 from models import connect_db, db, User, Feedback
-from forms import RegisterForm, LoginForm, FeedbackForm, PasswordResetForm, UpdatePasswordForm
+from forms import RegisterForm, LoginForm, FeedbackForm, EmailForm, UpdatePasswordForm
 from werkzeug.exceptions import NotFound, Unauthorized
 from sqlalchemy.exc import IntegrityError
 from flask_mail import Mail, Message
@@ -76,9 +76,9 @@ def register_user():
                 db.session.commit()
             except IntegrityError as e:
                 db.session.rollback()
-                if 'username' in str(e):
+                if 'Key (username)' in str(e):
                     form.username.errors.append('Username taken. Please pick another')
-                if 'email' in str(e):
+                if 'Key (email)' in str(e):
                     form.email.errors.append('Email already registered. Please log in')
                 return render_template('register.html', form=form)
             session['username'] = new_user.username
@@ -105,9 +105,9 @@ def login_user():
             session["admin"] = user.is_admin
             return redirect(f'/user/{user.username}')
         elif not db.session.execute(db.select(User).where(User.username == username)).scalar():
-            form.username.errors = ['invalid username'] 
+            form.username.errors = ['Invalid username'] 
         else:
-            form.password.errors=['invalid password']
+            form.password.errors=['Invalid password']
     return render_template('login.html', form=form)
 
 @app.route('/logout', methods=["POST"])
@@ -126,7 +126,7 @@ def reset_password():
         flash('You are already logged in.', 'danger')
         return redirect('/')
     
-    form = PasswordResetForm()
+    form = EmailForm()
 
     if form.validate_on_submit():
         email = form.email.data
@@ -140,19 +140,21 @@ def reset_password():
             msg.html = render_template('passwordresetemail.html', prt=prt, email=email)
             mail.send(msg)
             return redirect('/login')
+        else:
+            form.email.errors=['Email not in database. Please register to proceed.']
 
     return render_template('reset.html', form=form)
 
 @app.route('/updatepassword', methods=["GET", "POST"])
-def show_update_password_form():
+def update_password():
     """Displays password reset form and resets password"""
     if "username" in session:
         flash('You are already logged in.', 'danger')
         return redirect('/')
     
     form = UpdatePasswordForm()
-    email = request.args['email']
-    prt = request.args['prt']
+    email = request.args.get('email')
+    prt = request.args.get('prt')
     user = db.session.execute(db.select(User).where(User.email == email)).scalar()
 
     if form.validate_on_submit():
@@ -161,8 +163,7 @@ def show_update_password_form():
         if password != password2:
             form.password2.errors=['Passwords do not match']
             return render_template('updatepassword.html', form=form)
-        hashed_password = user.update_password_hash(pwd=password)
-        stmt = update(User).where(User.email == email).values(password=hashed_password)
+        stmt = user.update_password(pwd=password, email=email)
         db.session.execute(stmt)
         try:
             db.session.commit()
@@ -179,10 +180,31 @@ def show_update_password_form():
         return redirect('/login')
     elif user and user.password_reset_token == prt:
         return render_template('updatepassword.html', form=form)
-    
     else: 
         flash('Unauthorized password reset attempt', 'danger')
         return redirect('/')
+    
+@app.route('/getusername', methods=["GET", "POST"])
+def get_username():
+    """displays username request form and sends username via email"""
+    if "username" in session:
+        flash('You are already logged in.', 'danger')
+        return redirect('/')
+    
+    form = EmailForm()
+
+    if form.validate_on_submit():
+        email = form.email.data
+        user = db.session.execute(db.select(User).where(User.email == email)).scalar()
+        if user: 
+            msg = Message(subject='Feedback App Username', sender='theenbydeveloper@gmail.com', recipients=[email])
+            msg.html = render_template('usernameemail.html', username=user.username)
+            mail.send(msg)
+            return redirect('/login')
+        else:
+            form.email.errors=['Email not in database. Please register to proceed.']
+
+    return render_template('getusername.html', form=form)
 
 
 #USER ROUTES
@@ -306,22 +328,3 @@ def delete_feedback(feedback_id):
     else:
         flash('You do not have permissions to delete that feedback.')
         raise Unauthorized()
-
-
-# 3 add functionality to reset a password or get a username
-    # get username button/link
-    # get username request form
-    # username sent via email
-    # add test for duplicate email
-    # test for password reset token creation method
-    # test for password resent view function
-    # test for get username view function
-# 2 pull as much logic as possible out of view functions
-    # create tests for new functions
-    # ensure existing tests test what the view function actually does
-# 1 style it
-    # find a theme that will work for the site
-    # install the theme
-    # change any necesssary style tags
-    # check all pages and tweak as needed
-

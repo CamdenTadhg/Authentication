@@ -1,6 +1,7 @@
 from flask_sqlalchemy import SQLAlchemy
 from flask_bcrypt import Bcrypt
 import secrets
+from sqlalchemy import update
 
 db = SQLAlchemy()
 bcrypt = Bcrypt()
@@ -50,13 +51,12 @@ class User(db.Model):
         """creates a password reset token"""
         return secrets.token_hex(16)
     
-    def update_password_hash(self, pwd):
+    def update_password(self, pwd, email):
         hashed = bcrypt.generate_password_hash(pwd)
         # turn byte string into normal string
         hashed_utf8 = hashed.decode('utf8')
-
-        #returns hashed password for database update
-        return hashed_utf8
+        #returns update statement 
+        return update(User).where(User.email == email).values(password=hashed_utf8)
     
     @property
     def fullname(self):

@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
-{% block title %}Login Form{% endblock %}
+{% block title %}Request Username{% endblock %}
 
 {% block content %}
 <div class="container">
-    <h1 class="my-4">Login Form</h1>
+    <h1 class="my-4">Get My Username</h1>
 
     <form id="login-form" method="POST">
         {{form.hidden_tag()}}
@@ -22,9 +22,7 @@
             {% endfor %}
         </p>
         {% endfor %}
-        <button type="submit" class="btn btn-secondary">Login</button>        
-        <a href="/getusername" class="btn btn-info">Forgot Username?</a>
-        <a href="/passwordreset" class="btn btn-info">Forgot Password? </a>
+        <button type="submit" class="btn btn-secondary">Send username via email</button>
     </form>
 
 </div>

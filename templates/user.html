@@ -9,7 +9,7 @@
     <h4>Email: {{user.email}}</h4>
     <div class="my-4">
         {% if session['username'] == user.username or session['admin'] == True %}
-        <a href="/user/{{user.username}}/feedback/add" class="btn btn-primary">Add New Feedback</a>
+        <a href="/user/{{user.username}}/feedback/add" class="btn btn-secondary">Add New Feedback</a>
         <form action="/user/{{user.username}}/delete" method="POST" style="display:inline">
             <button class="btn btn-danger">Delete Account</button>
         </form>
@@ -22,7 +22,7 @@
                 <h5 class="card-title"><b>{{feedback.title}}</b></h5>
                 <p class="card-text">{{feedback.content}}</p>
                 {% if session['username'] == user.username or session['admin'] == True %}
-                <a href="/feedback/{{feedback.id}}/update" class="btn btn-primary"><i class="fas fa-pencil"></i></a>
+                <a href="/feedback/{{feedback.id}}/update" class="btn btn-secondary"><i class="fas fa-pencil"></i></a>
                 <form action="/feedback/{{feedback.id}}/delete" method="POST" style="display:inline">
                     <button class="btn btn-danger"><i class="fas fa-trash"></i></button>
                 </form>

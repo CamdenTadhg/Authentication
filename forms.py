@@ -30,7 +30,7 @@ class FeedbackForm(FlaskForm):
     title = StringField("Title", validators=[InputRequired(message="Title is required."), Length(max=100, message="Title must be 100 characters or less.")])
     content = StringField("Content", validators=[InputRequired(message="Content is required.")])
 
-class PasswordResetForm(FlaskForm):
+class EmailForm(FlaskForm):
     email = EmailField("Please enter your email", validators=[InputRequired(message="Please enter your email")])
 
 class UpdatePasswordForm(FlaskForm):

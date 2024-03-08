@@ -1,9 +1,11 @@
 from unittest import TestCase
-from app import app
+from app import app, mail
 from models import db, User, Feedback, bcrypt
 from flask import session
+from sqlalchemy import update
 
 app.config['TESTING'] = True
+app.config['MAIL_SUPPRESS_SEND'] = False
 app.config['WTF_CSRF_ENABLED'] = False
 
 db.drop_all()
@@ -22,7 +24,7 @@ class FeedbackViewsTestCase(TestCase):
         db.session.add(user1)
         user2 = User.register(username="JohnDoe", pwd="secret2secret2!", email="johndoe@gmail.com", first_name="John", last_name="Doe")
         db.session.add(user2)
-        user3 = User.register(username="DianaBright", pwd="passwordpassword!", email="dianabright@gmail.com", first_name="Diana", last_name="Bright")
+        user3 = User.register(username="CamdenTadhg", pwd="passwordpassword!", email="camdent@gmail.com", first_name="Camden", last_name="Tadhg")
         db.session.add(user3)
         db.session.commit()
         stmt = update(User).where(User.username == "JohnDoe").values(is_admin=True)
@@ -37,13 +39,16 @@ class FeedbackViewsTestCase(TestCase):
         db.session.commit()
 
     def tearDown(self):
-        """Clean up any fouled transactions and clear session"""
+        """Clean up any fouled transactions and clear session and outbox"""
         with app.test_client() as client: 
             with client.session_transaction() as change_session:
                 if change_session.get('username'):
                     change_session.pop('username')
                 if change_session.get('admin'):
                     change_session.pop('admin')
+            with mail.record_messages() as outbox: 
+                if outbox:
+                    outbox.pop()
         db.session.rollback()
     
     def test_display_home_unlogged(self):
@@ -118,6 +123,15 @@ class FeedbackViewsTestCase(TestCase):
 
             self.assertEqual(resp.status_code, 200)
             self.assertIn('Username taken', html)
+    
+    def test_register_user_duplicate_email(self):
+        with app.test_client() as client:
+            resp = client.post('/register', data= {"username": "JanetDoe", "password": "passwordpassword!", "password2": "passwordpassword!", "email": "janedoe@gmail.com", "first_name": "Jane", "last_name": "Doe"})
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Email already registered', html)
+
     
     def test_register_user_password_unmatch(self):
         with app.test_client() as client:
@@ -268,6 +282,206 @@ class FeedbackViewsTestCase(TestCase):
             self.assertIn('Login', html)
             self.assertFalse(session.get('username')) 
             self.assertFalse(session.get('admin')) 
+    
+    def test_reset_password_loggedin(self):
+        with app.test_client() as client:
+            with client.session_transaction() as change_session:
+                change_session['username'] = 'JaneDoe'
+            resp = client.get('/passwordreset')
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.location, '/')
+    
+    def test_reset_password_loggedin_redirect(self):
+        with app.test_client() as client:
+            with client.session_transaction() as change_session:
+                change_session['username'] = 'JaneDoe'
+            resp = client.get('/passwordreset', follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('You are already', html)
+
+    def test_reset_password_get(self):
+        with app.test_client() as client:
+            resp = client.get('/passwordreset')
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Send password reset', html)            
+
+    def test_reset_password_post_correct(self):
+        with app.test_client() as client:
+            with mail.record_messages() as outbox: 
+                resp = client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+                html = resp.get_data(as_text=True)
+
+                self.assertEqual(resp.status_code, 302)
+                self.assertEqual(resp.location, '/login')
+                self.assertEqual(len(outbox), 1)
+                self.assertEqual(outbox[0].subject, 'Password Reset Link')
+    
+    def test_reset_password_post_correct_redirect(self):
+        with app.test_client() as client:
+            with mail.record_messages() as outbox: 
+                resp = client.post('/passwordreset', data={'email': 'camdent@gmail.com'}, follow_redirects=True)
+                html = resp.get_data(as_text=True)
+
+                self.assertEqual(resp.status_code, 200)
+                self.assertIn('Forgot Username?', html)
+                self.assertEqual(len(outbox), 1)
+                self.assertEqual(outbox[0].subject, 'Password Reset Link')
+                self.assertIn('<a', outbox[0].html)
+
+    def test_reset_password_post_incorrect(self):
+        with app.test_client() as client:
+            resp = client.post('/passwordreset', data={'email': 'camdent2@gmail.com'}, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Email not in database', html)
+    
+    def test_update_password_loggedin(self):
+        with app.test_client() as client:
+            with client.session_transaction() as change_session:
+                change_session['username'] = 'CamdenTadhg'
+            client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+            camden = db.session.execute(db.select(User).where(User.email == 'camdent@gmail.com')).scalar()
+            resp = client.get(f'/updatepassword?prt={camden.password_reset_token}&email=camdent@gmail.com')
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.location, '/')
+
+    def test_update_password_loggedin_redirect(self):
+        with app.test_client() as client:
+            with client.session_transaction() as change_session:
+                change_session['username'] = 'CamdenTadhg'
+            client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+            camden = db.session.execute(db.select(User).where(User.email == 'camdent@gmail.com')).scalar()
+            resp = client.get(f'/updatepassword?prt={camden.password_reset_token}&email=camdent@gmail.com', follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('You are already', html)
+
+    def test_update_password_get(self):
+        with app.test_client() as client:
+            client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+            camden = db.session.execute(db.select(User).where(User.email == 'camdent@gmail.com')).scalar()
+            resp = client.get(f'/updatepassword?prt={camden.password_reset_token}&email=camdent@gmail.com')
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Update Password', html)
+
+    def test_update_password_unmatched_passwords(self):
+        with app.test_client() as client:
+            client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+            camden = db.session.execute(db.select(User).where(User.email == 'camdent@gmail.com')).scalar()
+            resp = client.post(f'/updatepassword?prt=1{camden.password_reset_token}&email=camdent@gmail.com', data={'password':'sasdghwoiwg!', 'password2': 'kjhaskhagi!'})
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Passwords do not match', html)
+
+    def test_update_password_correct(self):
+        with app.test_client() as client:
+            client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+            camden = db.session.execute(db.select(User).where(User.email == 'camdent@gmail.com')).scalar()
+            resp = client.post(f'/updatepassword?prt=1{camden.password_reset_token}&email=camdent@gmail.com', data={'password':'passwordpassword!', 'password2': 'passwordpassword!'})
+
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.location, '/login')
+
+    def test_update_password_correct_redirect(self):
+        with app.test_client() as client:
+            client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+            camden = db.session.execute(db.select(User).where(User.email == 'camdent@gmail.com')).scalar()
+            resp = client.post(f'/updatepassword?prt=1{camden.password_reset_token}&email=camdent@gmail.com', data={'password':'passwordpassword!', 'password2': 'passwordpassword!'}, follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Forgot Username', html)
+
+    def test_update_password_bad_token(self):
+        with app.test_client() as client:
+            client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+            camden = db.session.execute(db.select(User).where(User.email == 'camdent@gmail.com')).scalar()
+            resp = client.get(f'/updatepassword?prt=1{camden.password_reset_token}&email=camdent@gmail.com')
+
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.location, '/')
+
+    def test_update_password_bad_token_redirect(self):
+        with app.test_client() as client:
+            client.post('/passwordreset', data={'email': 'camdent@gmail.com'})
+            camden = db.session.execute(db.select(User).where(User.email == 'camdent@gmail.com')).scalar()
+            resp = client.get(f'/updatepassword?prt=1{camden.password_reset_token}&email=camdent@gmail.com', follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Unauthorized password', html)
+
+    def test_get_username_loggedin(self):
+        with app.test_client() as client:
+            with client.session_transaction() as change_session:
+                change_session['username'] = 'JaneDoe'
+            resp = client.get('/getusername')
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 302)
+            self.assertEqual(resp.location, '/')
+
+    def test_get_username_loggedin_redirect(self):
+        with app.test_client() as client:
+            with client.session_transaction() as change_session:
+                change_session['username'] = 'JaneDoe'
+            resp = client.get('/getusername', follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('You are already', html)
+
+    def test_get_username_get(self):
+        with app.test_client() as client:
+            resp = client.get('/getusername', follow_redirects=True)
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Get My Username', html)
+
+    def test_get_username_correct(self):
+        with app.test_client() as client:
+            with mail.record_messages() as outbox: 
+                resp = client.post('/getusername', data={'email': 'camdent@gmail.com'})
+                html = resp.get_data(as_text=True)
+
+                self.assertEqual(resp.status_code, 302)
+                self.assertEqual(resp.location, '/login')
+                self.assertEqual(len(outbox), 1)
+                self.assertEqual(outbox[0].subject, 'Feedback App Username')
+
+    def test_get_username_correct_redirect(self):
+        with app.test_client() as client:
+            with mail.record_messages() as outbox: 
+                resp = client.post('/getusername', data={'email': 'camdent@gmail.com'}, follow_redirects=True)
+                html = resp.get_data(as_text=True)
+
+                self.assertEqual(resp.status_code, 200)
+                self.assertIn('Forgot Username?', html)
+                self.assertEqual(len(outbox), 1)
+                self.assertEqual(outbox[0].subject, 'Feedback App Username')
+                self.assertIn('CamdenTadhg', outbox[0].html)
+                    
+    def test_get_username_bad_email(self):
+        with app.test_client() as client:
+            resp = client.post('/getusername', data={'email': 'camdent2@gmail.com'})
+            html = resp.get_data(as_text=True)
+
+            self.assertEqual(resp.status_code, 200)
+            self.assertIn('Email not in database', html)
 
     def test_display_user_loggedout(self):
         with app.test_client() as client:
@@ -295,8 +509,7 @@ class FeedbackViewsTestCase(TestCase):
             self.assertEqual(resp.status_code, 200)
             self.assertIn('Delete Account', html)
             self.assertIn('fa-trash', html)
-            self.assertIn('testing 1', html)
-            
+            self.assertIn('testing 1', html) 
 
     def test_display_user_wrong_user(self):
         with app.test_client() as client:
@@ -749,3 +962,20 @@ class UserModelTestCase(TestCase):
     def test_authenticate_incorrect(self):
 
         self.assertEqual(User.authenticate('JaneDoe', 'secret2'), False)
+    
+    def test_get_password_reset_token(self):
+        user = db.session.execute(db.select(User).where(User.username == 'JaneDoe')).scalar()
+        prt = user.get_password_reset_token()
+
+        self.assertEqual(len(prt), 32)
+    
+    def test_update_password(self):
+        user = db.session.execute(db.select(User).where(User.username == 'JaneDoe')).scalar()
+        oldpassword = user.password
+        stmt = user.update_password('passwordpassword!', 'janedoe@gmail.com')
+        db.session.execute(stmt)
+        db.session.commit()
+        user2 = db.session.execute(db.select(User).where(User.username == 'JaneDoe')).scalar()
+        newpassword = user2.password
+
+        self.assertNotEqual(oldpassword, newpassword)
